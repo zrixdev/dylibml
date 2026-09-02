@@ -17,12 +17,9 @@ static bool g_showLevel = true;
 
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     UIView *view = [super hitTest:point withEvent:event];
-    
     if (!view) return nil;
-    
     if (view == self.floatButton || [view isDescendantOfView:self.floatButton]) return view;
     if (view == self.menuView || [view isDescendantOfView:self.menuView]) return view;
-    
     return nil;
 }
 
@@ -54,114 +51,99 @@ static bool g_showLevel = true;
 }
 
 - (void)drawRect:(CGRect)rect {
+    // Debug overlay
+    NSString *debug = [NSString stringWithFormat:@"Entities: %d", _entityCount];
+    if (_entityCount > 0) {
+        ESPEntity *first = &_entities[0];
+        debug = [debug stringByAppendingFormat:@" | HP: %d/%d Camp:%d", first->hp, first->hpMax, first->camp];
+    }
+    UIFont *dbgFont = [UIFont systemFontOfSize:12 weight:UIFontWeightBold];
+    [debug drawAtPoint:CGPointMake(8, 30) withAttributes:@{NSFontAttributeName: dbgFont, NSForegroundColorAttributeName: [UIColor whiteColor]}];
+
     if (!g_espEnabled) return;
     if (!_entities || _entityCount == 0) return;
-    
+
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     if (!ctx) return;
-    
+
     CGContextSetAllowsAntialiasing(ctx, true);
     CGContextSetShouldAntialias(ctx, true);
-    
+
     for (int i = 0; i < _entityCount; i++) {
         ESPEntity *e = &_entities[i];
-        
+
         if (!e->onScreen) continue;
         if (e->isDead) continue;
         if (e->isSelf) continue;
         if (e->hpMax <= 0) continue;
-        
+
         bool isEnemy = (e->camp == 2);
-        UIColor *color = isEnemy 
+        UIColor *color = isEnemy
             ? [UIColor colorWithRed:1.0 green:0.2 blue:0.2 alpha:0.9]
             : [UIColor colorWithRed:0.2 green:1.0 blue:0.2 alpha:0.9];
-        
+
         if (g_showBox) {
-            CGRect boxRect = CGRectMake(
-                e->sx - e->boxW / 2,
-                e->sy - e->boxH / 2,
-                e->boxW,
-                e->boxH
-            );
-            
+            CGRect boxRect = CGRectMake(e->sx - e->boxW / 2, e->sy - e->boxH / 2, e->boxW, e->boxH);
             CGContextSetShadowWithColor(ctx, CGSizeMake(0, 0), 4.0, color.CGColor);
             CGContextSetStrokeColorWithColor(ctx, color.CGColor);
             CGContextSetLineWidth(ctx, 1.5);
             CGContextStrokeRect(ctx, boxRect);
             CGContextSetShadowWithColor(ctx, CGSizeZero, 0, nil);
-            
+
             CGFloat cl = MIN(8.0, e->boxW / 4);
             CGContextSetLineWidth(ctx, 2.0);
             CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithWhite:1.0 alpha:0.8].CGColor);
-            
+
             CGContextMoveToPoint(ctx, boxRect.origin.x, boxRect.origin.y + cl);
             CGContextAddLineToPoint(ctx, boxRect.origin.x, boxRect.origin.y);
             CGContextAddLineToPoint(ctx, boxRect.origin.x + cl, boxRect.origin.y);
             CGContextStrokePath(ctx);
-            
+
             CGContextMoveToPoint(ctx, boxRect.origin.x + boxRect.size.width - cl, boxRect.origin.y);
             CGContextAddLineToPoint(ctx, boxRect.origin.x + boxRect.size.width, boxRect.origin.y);
             CGContextAddLineToPoint(ctx, boxRect.origin.x + boxRect.size.width, boxRect.origin.y + cl);
             CGContextStrokePath(ctx);
-            
+
             CGContextMoveToPoint(ctx, boxRect.origin.x, boxRect.origin.y + boxRect.size.height - cl);
             CGContextAddLineToPoint(ctx, boxRect.origin.x, boxRect.origin.y + boxRect.size.height);
             CGContextAddLineToPoint(ctx, boxRect.origin.x + cl, boxRect.origin.y + boxRect.size.height);
             CGContextStrokePath(ctx);
-            
+
             CGContextMoveToPoint(ctx, boxRect.origin.x + boxRect.size.width - cl, boxRect.origin.y + boxRect.size.height);
             CGContextAddLineToPoint(ctx, boxRect.origin.x + boxRect.size.width, boxRect.origin.y + boxRect.size.height);
             CGContextAddLineToPoint(ctx, boxRect.origin.x + boxRect.size.width, boxRect.origin.y + boxRect.size.height - cl);
             CGContextStrokePath(ctx);
         }
-        
+
         if (g_showHealth && e->hpMax > 0) {
             CGFloat barW = e->boxW + 4;
             CGFloat barH = 4;
             CGFloat barX = e->sx - e->boxW / 2 - 2;
             CGFloat barY = e->sy - e->boxH / 2 - barH - 4;
-            
             CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0 alpha:0.7].CGColor);
             CGContextFillRect(ctx, CGRectMake(barX, barY, barW, barH));
-            
             float hpRatio = (float)e->hp / (float)e->hpMax;
             if (hpRatio > 1.0f) hpRatio = 1.0f;
             if (hpRatio < 0.0f) hpRatio = 0.0f;
-            
             UIColor *hpColor;
-            if (hpRatio > 0.6f) {
-                hpColor = [UIColor colorWithRed:0.2 green:0.9 blue:0.2 alpha:0.9];
-            } else if (hpRatio > 0.3f) {
-                hpColor = [UIColor colorWithRed:0.9 green:0.9 blue:0.2 alpha:0.9];
-            } else {
-                hpColor = [UIColor colorWithRed:0.9 green:0.2 blue:0.2 alpha:0.9];
-            }
-            
+            if (hpRatio > 0.6f) hpColor = [UIColor colorWithRed:0.2 green:0.9 blue:0.2 alpha:0.9];
+            else if (hpRatio > 0.3f) hpColor = [UIColor colorWithRed:0.9 green:0.9 blue:0.2 alpha:0.9];
+            else hpColor = [UIColor colorWithRed:0.9 green:0.2 blue:0.2 alpha:0.9];
             CGContextSetFillColorWithColor(ctx, hpColor.CGColor);
             CGContextFillRect(ctx, CGRectMake(barX, barY, barW * hpRatio, barH));
         }
-        
+
         if (g_showDistance) {
             NSString *dist = [NSString stringWithFormat:@"%.0fm", e->distance];
             UIFont *font = [UIFont monospacedDigitSystemFontOfSize:9 weight:UIFontWeightMedium];
-            NSDictionary *attrs = @{
-                NSFontAttributeName: font,
-                NSForegroundColorAttributeName: color,
-                NSStrokeWidthAttributeName: @(-2.0),
-                NSStrokeColorAttributeName: [UIColor blackColor],
-            };
+            NSDictionary *attrs = @{NSFontAttributeName: font, NSForegroundColorAttributeName: color, NSStrokeWidthAttributeName: @(-2.0), NSStrokeColorAttributeName: [UIColor blackColor]};
             [dist drawAtPoint:CGPointMake(e->sx - e->boxW/2, e->sy + e->boxH/2 + 3) withAttributes:attrs];
         }
-        
+
         if (g_showLevel) {
             NSString *lvl = [NSString stringWithFormat:@"Lv.%d", e->level];
             UIFont *font = [UIFont monospacedDigitSystemFontOfSize:9 weight:UIFontWeightMedium];
-            NSDictionary *attrs = @{
-                NSFontAttributeName: font,
-                NSForegroundColorAttributeName: [UIColor systemYellowColor],
-                NSStrokeWidthAttributeName: @(-2.0),
-                NSStrokeColorAttributeName: [UIColor blackColor],
-            };
+            NSDictionary *attrs = @{NSFontAttributeName: font, NSForegroundColorAttributeName: [UIColor systemYellowColor], NSStrokeWidthAttributeName: @(-2.0), NSStrokeColorAttributeName: [UIColor blackColor]};
             [lvl drawAtPoint:CGPointMake(e->sx + e->boxW/2 + 2, e->sy - e->boxH/2) withAttributes:attrs];
         }
     }
@@ -171,6 +153,7 @@ static bool g_showLevel = true;
 
 @interface ESPMenuView : UIView
 - (void)refreshButtons;
+- (void)setStatusText:(NSString *)text;
 @end
 
 @implementation ESPMenuView {
@@ -179,6 +162,7 @@ static bool g_showLevel = true;
     UIButton *hpBtn;
     UIButton *distBtn;
     UIButton *lvlBtn;
+    UILabel *statusLabel;
     CGPoint lastTouch;
 }
 
@@ -189,13 +173,13 @@ static bool g_showLevel = true;
         self.layer.cornerRadius = 12;
         self.layer.borderWidth = 1.5;
         self.layer.borderColor = [UIColor colorWithRed:1 green:0.2 blue:0.2 alpha:0.6].CGColor;
-        
+
         UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(12, 8, 100, 20)];
         title.text = @"ESP-BOX";
         title.font = [UIFont systemFontOfSize:14 weight:UIFontWeightBlack];
         title.textColor = [UIColor colorWithRed:1 green:0.3 blue:0.3 alpha:1];
         [self addSubview:title];
-        
+
         UIButton *close = [UIButton buttonWithType:UIButtonTypeSystem];
         close.frame = CGRectMake(frame.size.width - 30, 6, 24, 24);
         [close setTitle:@"✕" forState:UIControlStateNormal];
@@ -204,13 +188,19 @@ static bool g_showLevel = true;
         close.layer.cornerRadius = 12;
         [close addTarget:self action:@selector(closeTapped) forControlEvents:UIControlEventTouchUpInside];
         [self addSubview:close];
-        
-        espBtn = [self makeButton:@"ESP: ON" y:34 action:@selector(togESP)];
-        boxBtn = [self makeButton:@"Box: ON" y:74 action:@selector(togBox)];
-        hpBtn = [self makeButton:@"HP: ON" y:114 action:@selector(togHP)];
-        distBtn = [self makeButton:@"Dist: ON" y:154 action:@selector(togDist)];
-        lvlBtn = [self makeButton:@"Lv: ON" y:194 action:@selector(togLv)];
-        
+
+        statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(12, 30, frame.size.width - 48, 20)];
+        statusLabel.font = [UIFont monospacedDigitSystemFontOfSize:10 weight:UIFontWeightMedium];
+        statusLabel.textColor = [UIColor colorWithWhite:0.6 alpha:1];
+        statusLabel.text = @"Finding data...";
+        [self addSubview:statusLabel];
+
+        espBtn = [self makeButton:@"ESP: ON" y:56 action:@selector(togESP)];
+        boxBtn = [self makeButton:@"Box: ON" y:96 action:@selector(togBox)];
+        hpBtn = [self makeButton:@"HP: ON" y:136 action:@selector(togHP)];
+        distBtn = [self makeButton:@"Dist: ON" y:176 action:@selector(togDist)];
+        lvlBtn = [self makeButton:@"Lv: ON" y:216 action:@selector(togLv)];
+
         [self addSubview:espBtn];
         [self addSubview:boxBtn];
         [self addSubview:hpBtn];
@@ -242,6 +232,15 @@ static bool g_showLevel = true;
     [lvlBtn setTitle:g_showLevel ? @"Lv: ON" : @"Lv: OFF" forState:UIControlStateNormal];
 }
 
+- (void)setStatusText:(NSString *)text {
+    statusLabel.text = text;
+    if ([text containsString:@"Success"]) {
+        statusLabel.textColor = [UIColor greenColor];
+    } else {
+        statusLabel.textColor = [UIColor colorWithWhite:0.6 alpha:1];
+    }
+}
+
 - (void)togESP { g_espEnabled = !g_espEnabled; [self refreshButtons]; }
 - (void)togBox { g_showBox = !g_showBox; [self refreshButtons]; }
 - (void)togHP { g_showHealth = !g_showHealth; [self refreshButtons]; }
@@ -250,9 +249,13 @@ static bool g_showLevel = true;
 
 - (void)closeTapped {
     self.hidden = YES;
+    UIView *root = self.superview;
     UIButton *fb = nil;
-    for (UIView *sub in self.window.subviews) {
-        if ([sub isKindOfClass:[UIButton class]]) { fb = (UIButton *)sub; break; }
+    for (UIView *sub in root.subviews) {
+        if ([sub isKindOfClass:[UIButton class]]) {
+            fb = (UIButton *)sub;
+            break;
+        }
     }
     fb.hidden = NO;
 }
@@ -329,7 +332,6 @@ static bool g_showLevel = true;
 - (void)start {
     if (running) return;
     running = YES;
-    
     dispatch_async(dispatch_get_main_queue(), ^{
         [self setupWindow];
     });
@@ -346,42 +348,40 @@ static bool g_showLevel = true;
             }
         }
     }
-    
     if (!scene) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2.0 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             if (self->running) [self setupWindow];
         });
         return;
     }
-    
+
     window = [[PassThroughWindow alloc] initWithWindowScene:scene];
     window.windowLevel = UIWindowLevelAlert + 100;
     window.backgroundColor = [UIColor clearColor];
     window.opaque = NO;
     window.userInteractionEnabled = YES;
-    
+
     UIView *rootView = [[UIView alloc] initWithFrame:scene.coordinateSpace.bounds];
     rootView.backgroundColor = [UIColor clearColor];
     rootView.userInteractionEnabled = YES;
-    
+
     espView = [[ESPView alloc] initWithFrame:rootView.bounds];
     [rootView addSubview:espView];
-    
+
     floatButton = [[ESPFloatButton alloc] initWithFrame:CGRectMake(16, 250, 44, 44)];
     [floatButton addTarget:self action:@selector(floatTapped) forControlEvents:UIControlEventTouchUpInside];
     [rootView addSubview:floatButton];
-    
-    menuView = [[ESPMenuView alloc] initWithFrame:CGRectMake(
-        UIScreen.mainScreen.bounds.size.width - 190, 120, 170, 260)];
+
+    menuView = [[ESPMenuView alloc] initWithFrame:CGRectMake(UIScreen.mainScreen.bounds.size.width - 190, 120, 170, 300)];
     menuView.hidden = YES;
     [rootView addSubview:menuView];
-    
+
     window.rootViewController = [[UIViewController alloc] init];
     window.rootViewController.view = rootView;
     window.floatButton = floatButton;
     window.menuView = menuView;
     window.hidden = NO;
-    
+
     [self startDisplayLink];
 }
 
@@ -399,12 +399,9 @@ static bool g_showLevel = true;
 
 - (void)renderFrame:(CADisplayLink *)link {
     if (!running || !espView) return;
-    
     frameTick++;
-    
     if (frameTick % 3 == 0) {
         entityCount = parseEntities(entities, 16);
-        
         hasSelf = NO;
         for (int i = 0; i < entityCount; i++) {
             if (entities[i].isSelf) {
@@ -413,10 +410,15 @@ static bool g_showLevel = true;
                 break;
             }
         }
-        
         [self projectEntities];
+
+        // Update menu status
+        if (entityCount > 0) {
+            [menuView setStatusText:[NSString stringWithFormat:@"ESP Enemy Success: %d", entityCount]];
+        } else {
+            [menuView setStatusText:@"Finding data..."];
+        }
     }
-    
     [espView updateEntities:entities count:entityCount];
 }
 
@@ -424,44 +426,33 @@ static bool g_showLevel = true;
     CGRect bounds = [UIScreen mainScreen].bounds;
     float screenW = bounds.size.width;
     float screenH = bounds.size.height;
-    
     float camAngle = 0.96;
     float cosA = cosf(camAngle);
     float sinA = sinf(camAngle);
-    
     float refX = hasSelf ? selfPos.x : 0;
     float refZ = hasSelf ? selfPos.z : 0;
-    
+
     for (int i = 0; i < entityCount; i++) {
         ESPEntity *e = &entities[i];
-        
         float relX = e->pos.x - refX;
         float relZ = e->pos.z - refZ;
-        
         float rotX = relX * cosA - relZ * sinA;
         float rotZ = relX * sinA + relZ * cosA;
-        
         float scale = screenW / 120.0f;
-        
         float sx = screenW / 2 + rotX * scale;
         float sy = screenH / 2 + rotZ * scale * 0.55f - e->pos.y * scale * 0.2f;
-        
         if (sx < -100 || sx > screenW + 100 || sy < -100 || sy > screenH + 100) {
             e->onScreen = NO;
             continue;
         }
-        
         e->onScreen = YES;
         e->sx = sx;
         e->sy = sy;
-        
         float dist = sqrtf(relX * relX + relZ * relZ);
         e->distance = dist;
-        
         float boxH = 90.0f - dist * 0.3f;
         if (boxH < 30) boxH = 30;
         if (boxH > 90) boxH = 90;
-        
         e->boxH = boxH;
         e->boxW = boxH * 0.55f;
     }
