@@ -1,0 +1,38 @@
+name: Build ESPBox Dylib
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Dylib
+        run: |
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          clang \
+            -dynamiclib \
+            -arch arm64 \
+            -isysroot "$SDK_PATH" \
+            -mios-version-min=13.0 \
+            -fobjc-arc \
+            -Wno-error \
+            -framework UIKit \
+            -framework CoreGraphics \
+            -framework Foundation \
+            -o ESPBox.dylib \
+            Tweak.m \
+            ESPRenderer.m
+
+      - name: Upload Dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: ESPBox-dylib
+          path: ESPBox.dylib
+          retention-days: 30
