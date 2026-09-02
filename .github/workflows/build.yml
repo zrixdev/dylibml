@@ -26,6 +26,7 @@ jobs:
             -framework UIKit \
             -framework CoreGraphics \
             -framework Foundation \
+            -framework QuartzCore \
             -o ESPBox.dylib \
             Tweak.m \
             ESPRenderer.m
